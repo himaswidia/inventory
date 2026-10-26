@@ -190,4 +190,20 @@ else:
       st.rerun()
 
   # Visualisasi Grid Sederhana di bawah gambar
-  st.subheader("🗺️ Status
+  st.subheader("🗺️ Status Kotak Papan (1 sampai 30)")
+  board_cols = st.columns(6)
+  for i in range(MAX_BOARD, 0, -1):
+    col_idx = (MAX_BOARD - i) % 6
+    with board_cols[col_idx]:
+      occupants = [
+          p for p, pos in st.session_state.positions.items() if pos == i
+      ]
+      occ_str = " ".join([f"({p[:3]})" for p in occupants])
+      if i in SNAKES_AND_LADDERS:
+        dest = SNAKES_AND_LADDERS[i]
+        icon = "🪜" if dest > i else "🐍"
+        st.markdown(
+            f"**[{i}]** {icon}\n{occ_str}" if occ_str else f"**[{i}]** {icon}"
+        )
+      else:
+        st.markdown(f"**[{i}]**\n{occ_str}" if occ_str else f"**[{i}]**")
