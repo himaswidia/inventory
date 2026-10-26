@@ -1,12 +1,15 @@
+import os
 import random
 import streamlit as st
 
-# Konfigurasi halaman
+# Konfigurasi halaman Streamlit
 st.set_page_config(
-    page_title="Ular Tangga Multiplayer (Max 4 Orang)", page_icon="🎲", layout="centered"
+    page_title="Ular Tangga Multiplayer (Max 4 Orang)",
+    page_icon="🎲",
+    layout="centered",
 )
 
-# Definisi Peta Ular dan Tangga (Papan 30 Kotak agar seru dan cepat)
+# Definisi Peta Ular dan Tangga (Papan 30 Kotak)
 # Kunci = posisi awal, Nilai = posisi tujuan (Positif = Tangga, Negatif = Ular)
 SNAKES_AND_LADDERS = {
     3: 11,  # Tangga
@@ -19,7 +22,7 @@ SNAKES_AND_LADDERS = {
     29: 12,  # Ular turun ke 12
 }
 
-MAX_BOARD = 30  # Bisa diubah ke 100 jika ingin papan penuh
+MAX_BOARD = 30
 
 # Inisialisasi State Permainan
 if "game_started" not in st.session_state:
@@ -48,19 +51,33 @@ def reset_game():
   st.session_state.winner = None
 
 
-# Antarmuka Utama
-st.title("🎲 Ular Tangga Mini (1–4 Pemain)")
+# --- TAMPILAN UTAMA ---
+st.title("🎲 Ular Tangga Multiplayer (1–4 Pemain)")
+
+# Menampilkan Gambar Papan dari file lokal repository
+image_path = "ular_tangga.JPG"
+if os.path.exists(image_path):
+  st.image(
+      image_path,
+      caption="Papan Ular Tangga Klasik",
+      use_container_width=True,
+  )
+else:
+  st.warning(
+      f"⚠️ File gambar '{image_path}' tidak ditemukan di folder repository."
+      " Pastikan nama file dan hurufnya sama persis."
+  )
+
 st.write(
-    "Permainan papan klasik Ular Tangga interaktif berbasis web menggunakan"
-    " Streamlit."
+    "Permainan papan klasik Ular Tangga interaktif yang dimainkan secara"
+    " bergantian (turn-based) langsung di browser."
 )
+st.divider()
 
 # --- TAHAP 1: SETUP PEMAIN ---
 if not st.session_state.game_started:
-  st.subheader("Pengaturan Pemain")
-  num_players = st.selectbox(
-      "Pilih Jumlah Pemain:", [1, 2, 3, 4], index=1
-  )
+  st.subheader("👥 Pengaturan Pemain")
+  num_players = st.selectbox("Pilih Jumlah Pemain:", [1, 2, 3, 4], index=1)
 
   player_names = []
   for i in range(num_players):
@@ -72,7 +89,6 @@ if not st.session_state.game_started:
       st.error("Nama pemain tidak boleh sama!")
     else:
       st.session_state.players = player_names
-      # Semua pemain mulai dari kotak 0
       st.session_state.positions = {p: 0 for p in player_names}
       st.session_state.current_turn = 0
       st.session_state.game_started = True
@@ -87,8 +103,8 @@ else:
   players = st.session_state.players
   current_player = players[st.session_state.current_turn]
 
-  # Tampilkan Status Posisi Terkini
-  st.markdown("### 📊 Papan Skor / Posisi Pion")
+  # Tampilkan Papan Skor / Posisi Pion
+  st.markdown("### 📊 Posisi Pion Saat Ini")
   cols = st.columns(len(players))
   colors = ["🔴", "🔵", "🟢", "🟡"]
 
@@ -99,7 +115,9 @@ else:
           label=f"{colors[idx]} {player}",
           value=f"Kotak {pos}",
           delta=(
-              "Finis!" if pos == MAX_BOARD else f"Target: Kotak {MAX_BOARD}"
+              "Finis! 🎉"
+              if pos == MAX_BOARD
+              else f"Target: Kotak {MAX_BOARD}"
           ),
       )
 
@@ -111,7 +129,7 @@ else:
         f"🎉 SELAMAT! **{st.session_state.winner}** memenangkan permainan!"
         f" 🏆"
     )
-    if st.button("🔄 Main Lagi / Reset Game"):
+    if st.button("🔄 Main Lagi / Reset Game", type="primary"):
       reset_game()
       st.rerun()
   else:
@@ -122,7 +140,6 @@ else:
     )
 
     if st.button("🎲 Lempar Dadu!", type="primary", use_container_width=True):
-      # Kocok dadu 1-6
       roll = random.randint(1, 6)
       st.session_state.dice_roll = roll
 
@@ -131,9 +148,8 @@ else:
 
       msg = f"{current_player} melempar angka **{roll}**."
 
-      # Cek batas maksimum papan
+      # Sistem pantul jika melewati batas maksimum papan
       if new_pos > MAX_BOARD:
-        # Sistem pantul jika kelebihan langkah
         new_pos = MAX_BOARD - (new_pos - MAX_BOARD)
         msg += (
             f" Melebihi kotak {MAX_BOARD}, pion memantul mundur ke"
@@ -149,7 +165,7 @@ else:
           msg += f" 🐍 Oh tidak! Terkena **Ular** turun ke kotak {tujuan}!"
         new_pos = tujuan
 
-      # Update posisi pemain
+      # Simpan posisi baru
       st.session_state.positions[current_player] = new_pos
       st.session_state.message = msg
 
@@ -169,31 +185,9 @@ else:
       st.write(st.session_state.message)
 
     st.divider()
-    if st.button("Reset / Keluar Permainan"):
+    if st.button("Keluar / Reset Permainan"):
       reset_game()
       st.rerun()
 
-  # Visualisasi Mini Papan Grid Sederhana
-  st.subheader("🗺️ Visualisasi Jalur Papan (1 sampai 30)")
-  board_cols = st.columns(6)
-  # Tampilkan kotak dari 30 turun ke 1 atau sebaliknya
-  for i in range(MAX_BOARD, 0, -1):
-    col_idx = (MAX_BOARD - i) % 6
-    with board_cols[col_idx]:
-      # Cari siapa saja yang ada di kotak ini
-      occupants = [
-          p
-          for p, pos in st.session_state.positions.items()
-          if pos == i
-      ]
-      occ_str = " ".join([f"({p[:3]})" for p in occupants])
-      if i in SNAKES_AND_LADDERS:
-        dest = SNAKES_AND_LADDERS[i]
-        icon = "🪜" if dest > i else "🐍"
-        st.markdown(
-            f"**[{i}]** {icon}\n{occ_str}"
-            if occ_str
-            else f"**[{i}]** {icon}"
-        )
-      else:
-        st.markdown(f"**[{i}]**\n{occ_str}" if occ_str else f"**[{i}]**")
+  # Visualisasi Grid Sederhana di bawah gambar
+  st.subheader("🗺️ Status
