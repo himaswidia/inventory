@@ -1,5 +1,6 @@
 import os
 import random
+from PIL import Image, ImageDraw
 import streamlit as st
 
 # Konfigurasi halaman Streamlit
@@ -10,7 +11,6 @@ st.set_page_config(
 )
 
 # Definisi Peta Ular dan Tangga (Papan 30 Kotak)
-# Kunci = posisi awal, Nilai = posisi tujuan (Positif = Tangga, Negatif = Ular)
 SNAKES_AND_LADDERS = {
     3: 11,  # Tangga
     6: 17,  # Tangga
@@ -51,26 +51,101 @@ def reset_game():
   st.session_state.winner = None
 
 
+# Fungsi untuk memetakan nomor kotak (1-30) ke koordinat piksel (X, Y) di gambar
+def get_square_coords(sq, width, height):
+  sq = max(1, min(30, sq))
+  row = (sq - 1) // 6  # 5 baris (0 s.d 4)
+  col_in_row = (sq - 1) % 6  # 6 kolom (0 s.d 5)
+
+  # Pola ular tangga zigzag (boustrophedon)
+  if row % 2 == 1:
+    col = 5 - col_in_row
+  else:
+    col = col_in_row
+
+  # Estimasi persentase letak kotak pada gambar papan (bisa disesuaikan jika perlu)
+  x_percent = 0.12 + (col * 0.156)
+  y_percent = 0.85 - (row * 0.18)
+  return int(x_percent * width), int(y_percent * height)
+
+
+# Fungsi untuk menggambar pion pemain di atas gambar papan
+def draw_players_on_board(image_path, positions):
+  try:
+    img = Image.open(image_path).convert("RGB")
+  except Exception:
+    return None
+
+  width, height = img.size
+  draw = ImageDraw.Draw(img)
+
+  # Warna pion untuk Player 1 sampai 4 (Merah, Biru, Hijau, Kuning)
+  player_colors = {
+      0: (255, 50, 50),  # Merah
+      1: (50, 100, 255),  # Biru
+      2: (50, 200, 50),  # Hijau
+      3: (255, 200, 0),  # Kuning
+  }
+
+  # Kelompokkan pemain berdasarkan posisi kotak mereka
+  pos_dict = {}
+  for p_idx, (p_name, pos) in enumerate(positions.items()):
+    if pos > 0:  # Hanya gambar jika sudah di atas papan (>0)
+      if pos not in pos_dict:
+        pos_dict[pos] = []
+      pos_dict[pos].append((p_idx, p_name))
+
+  # Gambar pion di atas gambar
+  for pos, p_list in pos_dict.items():
+    base_x, base_y = get_square_coords(pos, width, height)
+    for idx, (p_idx, p_name) in enumerate(p_list):
+      # Offset posisi jika ada beberapa pemain di kotak yang sama
+      offset_x = (idx % 2) * 16 - 8
+      offset_y = (idx // 2) * 16 - 8
+      x = base_x + offset_x
+      y = base_y + offset_y
+
+      color = player_colors.get(p_idx, (128, 128, 128))
+      radius = 16
+
+      # Gambar lingkaran pion dengan border putih
+      draw.ellipse(
+          [x - radius, y - radius, x + radius, y + radius],
+          fill=color,
+          outline=(255, 255, 255),
+          width=3,
+      )
+
+  return img
+
+
 # --- TAMPILAN UTAMA ---
 st.title("🎲 Ular Tangga Multiplayer (1–4 Pemain)")
 
-# Menampilkan Gambar Papan dari file lokal repository
+# Tampilkan Papan dengan Pion Pemain di Atasnya
 image_path = "ular_tangga.JPG"
 if os.path.exists(image_path):
-  st.image(
-      image_path,
-      caption="Papan Ular Tangga Klasik",
-      use_container_width=True,
+  updated_image = draw_players_on_board(
+      image_path, st.session_state.positions
   )
+  if updated_image:
+    st.image(
+        updated_image,
+        caption=(
+            "Papan Permainan (Pion otomatis bergerak sesuai posisi pemain)"
+        ),
+        use_container_width=True,
+    )
+  else:
+    st.warning("Gagal memproses gambar papan.")
 else:
   st.warning(
       f"⚠️ File gambar '{image_path}' tidak ditemukan di folder repository."
-      " Pastikan nama file dan hurufnya sama persis."
   )
 
 st.write(
-    "Permainan papan klasik Ular Tangga interaktif yang dimainkan secara"
-    " bergantian (turn-based) langsung di browser."
+    "Permainan papan klasik Ular Tangga interaktif dengan visualisasi pion"
+    " langsung di atas papan."
 )
 st.divider()
 
@@ -188,22 +263,3 @@ else:
     if st.button("Keluar / Reset Permainan"):
       reset_game()
       st.rerun()
-
-  # Visualisasi Grid Sederhana di bawah gambar
-  st.subheader("🗺️ Status Kotak Papan (1 sampai 30)")
-  board_cols = st.columns(6)
-  for i in range(MAX_BOARD, 0, -1):
-    col_idx = (MAX_BOARD - i) % 6
-    with board_cols[col_idx]:
-      occupants = [
-          p for p, pos in st.session_state.positions.items() if pos == i
-      ]
-      occ_str = " ".join([f"({p[:3]})" for p in occupants])
-      if i in SNAKES_AND_LADDERS:
-        dest = SNAKES_AND_LADDERS[i]
-        icon = "🪜" if dest > i else "🐍"
-        st.markdown(
-            f"**[{i}]** {icon}\n{occ_str}" if occ_str else f"**[{i}]** {icon}"
-        )
-      else:
-        st.markdown(f"**[{i}]**\n{occ_str}" if occ_str else f"**[{i}]**")
