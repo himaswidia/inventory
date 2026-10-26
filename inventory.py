@@ -51,7 +51,7 @@ def reset_game():
   st.session_state.winner = None
 
 
-# Fungsi untuk memetakan nomor kotak (1-30) ke koordinat piksel (X, Y) di gambar
+# --- PERBAIKAN KOORDINAT PION DI DALAM PAPAN ---
 def get_square_coords(sq, width, height):
   sq = max(1, min(30, sq))
   row = (sq - 1) // 6  # 5 baris (0 s.d 4)
@@ -63,9 +63,10 @@ def get_square_coords(sq, width, height):
   else:
     col = col_in_row
 
-  # Estimasi persentase letak kotak pada gambar papan (bisa disesuaikan jika perlu)
-  x_percent = 0.12 + (col * 0.156)
-  y_percent = 0.85 - (row * 0.18)
+  # Batas area kotak di dalam gambar papan (disesuaikan agar pas di tengah)
+  # X merentang dari 25% sampai 75%, Y merentang dari 20% sampai 80%
+  x_percent = 0.25 + (col * (0.50 / 5))
+  y_percent = 0.80 - (row * (0.60 / 4))
   return int(x_percent * width), int(y_percent * height)
 
 
@@ -79,7 +80,7 @@ def draw_players_on_board(image_path, positions):
   width, height = img.size
   draw = ImageDraw.Draw(img)
 
-  # Warna pion untuk Player 1 sampai 4 (Merah, Biru, Hijau, Kuning)
+  # Warna pion untuk Player 1 s.d 4 (Merah, Biru, Hijau, Kuning)
   player_colors = {
       0: (255, 50, 50),  # Merah
       1: (50, 100, 255),  # Biru
@@ -100,13 +101,13 @@ def draw_players_on_board(image_path, positions):
     base_x, base_y = get_square_coords(pos, width, height)
     for idx, (p_idx, p_name) in enumerate(p_list):
       # Offset posisi jika ada beberapa pemain di kotak yang sama
-      offset_x = (idx % 2) * 16 - 8
-      offset_y = (idx // 2) * 16 - 8
+      offset_x = (idx % 2) * 14 - 7
+      offset_y = (idx // 2) * 14 - 7
       x = base_x + offset_x
       y = base_y + offset_y
 
       color = player_colors.get(p_idx, (128, 128, 128))
-      radius = 16
+      radius = 12  # Ukuran pion disesuaikan agar proporsional
 
       # Gambar lingkaran pion dengan border putih
       draw.ellipse(
@@ -131,9 +132,7 @@ if os.path.exists(image_path):
   if updated_image:
     st.image(
         updated_image,
-        caption=(
-            "Papan Permainan (Pion otomatis bergerak sesuai posisi pemain)"
-        ),
+        caption="Papan Permainan (Pion bergerak di dalam area papan)",
         use_container_width=True,
     )
   else:
